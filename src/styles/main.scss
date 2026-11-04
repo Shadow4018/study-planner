@@ -1,0 +1,33 @@
+@use 'variables' as *;
+@use 'components/app';
+@use 'components/header';
+@use 'components/task-form';
+@use 'components/task-stats';
+@use 'components/task-filters';
+@use 'components/task-list';
+@use 'components/task-item';
+
+// Мінімальні глобальні стилі: лише reset і базова типографіка.
+// Стилі компонентів — окремі BEM-блоки (див. ./components).
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: $color-bg;
+  color: $color-text;
+  font-family:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  line-height: 1.5;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
