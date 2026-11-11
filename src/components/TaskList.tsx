@@ -1,19 +1,19 @@
+import { useTaskContext } from '../hooks/useTaskContext'
 import TaskItem from './TaskItem'
-import type { Task } from '../types/task'
+import './TaskList.scss'
 
-interface TaskListProps {
-  /** Вже відфільтрований список для відображення. */
-  tasks: Task[]
-  /** Загальна кількість завдань (без урахування фільтра). */
-  totalCount: number
-  onToggleTask: (id: number) => void
-  onDeleteTask: (id: number) => void
-}
+function TaskList() {
+  const { tasks, filter } = useTaskContext()
 
-function TaskList({ tasks, totalCount, onToggleTask, onDeleteTask }: TaskListProps) {
-  // Умовний рендеринг: два різні повідомлення для порожнього стану.
-  if (tasks.length === 0) {
-    return totalCount === 0 ? (
+  // Відфільтрований список — derived state: обчислюється під час рендеру.
+  const visibleTasks = tasks.filter((task) => {
+    if (filter === 'completed') return task.completed
+    if (filter === 'active') return !task.completed
+    return true
+  })
+
+  if (visibleTasks.length === 0) {
+    return tasks.length === 0 ? (
       <div className="task-list task-list--empty">
         <p className="task-list__message">Завдань поки немає.</p>
         <p className="task-list__hint">Додайте перше навчальне завдання.</p>
@@ -27,13 +27,8 @@ function TaskList({ tasks, totalCount, onToggleTask, onDeleteTask }: TaskListPro
 
   return (
     <ul className="task-list">
-      {tasks.map((task) => (
-        <TaskItem
-          key={task.id}
-          task={task}
-          onToggle={onToggleTask}
-          onDelete={onDeleteTask}
-        />
+      {visibleTasks.map((task) => (
+        <TaskItem key={task.id} task={task} />
       ))}
     </ul>
   )

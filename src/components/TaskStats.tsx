@@ -1,12 +1,10 @@
-import type { Task } from '../types/task'
+import { useTaskContext } from '../hooks/useTaskContext'
+import './TaskStats.scss'
 
-interface TaskStatsProps {
-  tasks: Task[]
-  onClearCompleted: () => void
-}
+function TaskStats() {
+  const { tasks } = useTaskContext()
 
-function TaskStats({ tasks, onClearCompleted }: TaskStatsProps) {
-  // Лічильники виводяться з поточного масиву — окремий state не потрібен.
+  // Похідні дані: рахуються під час рендеру, без окремого state та useEffect.
   const total = tasks.length
   const completed = tasks.filter((task) => task.completed).length
   const active = total - completed
@@ -27,16 +25,6 @@ function TaskStats({ tasks, onClearCompleted }: TaskStatsProps) {
           <dd className="task-stats__value">{active}</dd>
         </div>
       </dl>
-
-      {completed > 0 && (
-        <button
-          className="task-stats__clear"
-          type="button"
-          onClick={onClearCompleted}
-        >
-          Очистити виконані
-        </button>
-      )}
     </section>
   )
 }

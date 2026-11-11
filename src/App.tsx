@@ -1,63 +1,37 @@
-import { useState } from 'react'
 import Header from './components/Header'
-import TaskForm from './components/TaskForm'
-import TaskStats from './components/TaskStats'
+import TaskActions from './components/TaskActions'
 import TaskFilters from './components/TaskFilters'
+import TaskForm from './components/TaskForm'
 import TaskList from './components/TaskList'
-import { initialTasks } from './data/initialTasks'
-import type { NewTaskData, Task, TaskFilter } from './types/task'
+import TaskStats from './components/TaskStats'
+import ToastContainer from './components/ToastContainer'
+import { useDocumentTitle } from './hooks/useDocumentTitle'
+import { useTaskContext } from './hooks/useTaskContext'
+import './App.scss'
 
+// Весь стан і операції тепер у TaskContext (див. main.tsx → TaskProvider),
+// тому App не передає tasks, filter і callback-и дітям через props.
 function App() {
-  // Єдине джерело правди: state живе в найближчому спільному батьку.
-  const [tasks, setTasks] = useState<Task[]>(initialTasks)
-  const [filter, setFilter] = useState<TaskFilter>('all')
+  const { tasks, editingTask } = useTaskContext()
 
-  // Всі оновлення — незмінні (immutable): створюємо новий масив / об'єкт.
-  const handleAddTask = (data: NewTaskData) => {
-    setTasks((prev) => {
-      const nextId = prev.reduce((max, task) => Math.max(max, task.id), 0) + 1
-      const newTask: Task = { id: nextId, completed: false, ...data }
-      return [...prev, newTask]
-    })
-  }
-
-  const handleToggleTask = (id: number) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task,
-      ),
-    )
-  }
-
-  const handleDeleteTask = (id: number) => {
-    setTasks((prev) => prev.filter((task) => task.id !== id))
-  }
-
-  const handleClearCompleted = () => {
-    setTasks((prev) => prev.filter((task) => !task.completed))
-  }
-
-  // Похідні дані обчислюються під час рендеру, окремий state не потрібен.
-  const visibleTasks = tasks.filter((task) => {
-    if (filter === 'completed') return task.completed
-    if (filter === 'active') return !task.completed
-    return true
-  })
+  // Effect: заголовок вкладки показує кількість невиконаних завдань.
+  const activeCount = tasks.filter((task) => !task.completed).length
+  useDocumentTitle(
+    `Study Planner — ${activeCount} active ${activeCount === 1 ? 'task' : 'tasks'}`,
+  )
 
   return (
     <div className="app">
       <Header />
       <main className="app__main">
-        <TaskForm onAddTask={handleAddTask} />
-        <TaskStats tasks={tasks} onClearCompleted={handleClearCompleted} />
-        <TaskFilters tasks={tasks} activeFilter={filter} onFilterChange={setFilter} />
-        <TaskList
-          tasks={visibleTasks}
-          totalCount={tasks.length}
-          onToggleTask={handleToggleTask}
-          onDeleteTask={handleDeleteTask}
-        />
+        {/* key перезапускає форму при зміні завдання, що редагується */}
+        <TaskForm key={editingTask?.id ?? 'new'} />
+        <TaskStats />
+        <TaskFilters />
+        <TaskList />
+        <TaskActions />
       </main>
+      <ToastContainer />
     </div>
   )
 }

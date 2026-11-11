@@ -1,11 +1,7 @@
 import { filterLabels, filterOptions } from '../data/labels'
+import { useTaskContext } from '../hooks/useTaskContext'
 import type { Task, TaskFilter } from '../types/task'
-
-interface TaskFiltersProps {
-  tasks: Task[]
-  activeFilter: TaskFilter
-  onFilterChange: (filter: TaskFilter) => void
-}
+import './TaskFilters.scss'
 
 function countByFilter(tasks: Task[], filter: TaskFilter): number {
   if (filter === 'completed') return tasks.filter((task) => task.completed).length
@@ -13,7 +9,9 @@ function countByFilter(tasks: Task[], filter: TaskFilter): number {
   return tasks.length
 }
 
-function TaskFilters({ tasks, activeFilter, onFilterChange }: TaskFiltersProps) {
+function TaskFilters() {
+  const { tasks, filter: activeFilter, setFilter } = useTaskContext()
+
   return (
     <div className="task-filters" role="group" aria-label="Фільтр завдань">
       {filterOptions.map((filter) => {
@@ -28,7 +26,7 @@ function TaskFilters({ tasks, activeFilter, onFilterChange }: TaskFiltersProps) 
                 : 'task-filters__button'
             }
             aria-pressed={isActive}
-            onClick={() => onFilterChange(filter)}
+            onClick={() => setFilter(filter)}
           >
             {filterLabels[filter]}
             <span className="task-filters__count">

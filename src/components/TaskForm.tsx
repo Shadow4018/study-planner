@@ -1,20 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { priorityLabels, priorityOptions } from '../data/labels'
-import type { NewTaskData, Priority } from '../types/task'
-
-interface TaskFormProps {
-  onAddTask: (data: NewTaskData) => void
-}
+import { useTaskContext } from '../hooks/useTaskContext'
+import type { Priority } from '../types/task'
+import './TaskForm.scss'
 
 const DEFAULT_CATEGORY = 'Загальне'
 
-function TaskForm({ onAddTask }: TaskFormProps) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [priority, setPriority] = useState<Priority>('medium')
+/**
+ * Одна форма для двох режимів: створення і редагування.
+ * Режим визначається за `editingTask` з контексту. Початкові значення полів
+ * беруться з цього завдання; щоб форма «перезавантажувалась» при зміні
+ * завдання, App ставить їй key={editingTask?.id}.
+ */
+function TaskForm() {
+  const { addTask, updateTask, editingTask, cancelEditing } = useTaskContext()
+  const isEditing = editingTask !== null
+
+  const [title, setTitle] = useState(editingTask?.title ?? '')
+  const [description, setDescription] = useState(editingTask?.description ?? '')
+  const [category, setCategory] = useState(editingTask?.category ?? '')
+  const [priority, setPriority] = useState<Priority>(
+    editingTask?.priority ?? 'medium',
+  )
   const [error, setError] = useState('')
+
+  const titleRef = useRef<HTMLInputElement>(null)
+
+  // При вході в режим редагування переносимо фокус у форму (і прокручуємо до неї).
+  useEffect(() => {
+    if (isEditing) titleRef.current?.focus()
+  }, [isEditing])
 
   const handleTitleChange = (event: ChangeEvent<HTMLInputElement>) => {
     setTitle(event.target.value)
@@ -30,12 +46,20 @@ function TaskForm({ onAddTask }: TaskFormProps) {
       return
     }
 
-    onAddTask({
+    const data = {
       title: trimmedTitle,
       description: description.trim(),
       category: category.trim() || DEFAULT_CATEGORY,
       priority,
-    })
+    }
+
+    if (editingTask) {
+      // Зміна проходить через dispatch → reducer, а не мутує об'єкт напряму.
+      updateTask(editingTask.id, data)
+      return
+    }
+
+    addTask(data)
 
     // Очищення форми після успішного додавання.
     setTitle('')
@@ -46,8 +70,14 @@ function TaskForm({ onAddTask }: TaskFormProps) {
   }
 
   return (
-    <form className="task-form" onSubmit={handleSubmit} noValidate>
-      <h2 className="task-form__title">Нове завдання</h2>
+    <form
+      className={isEditing ? 'task-form task-form--editing' : 'task-form'}
+      onSubmit={handleSubmit}
+      noValidate
+    >
+      <h2 className="task-form__title">
+        {isEditing ? 'Редагування завдання' : 'Нове завдання'}
+      </h2>
 
       <div className="task-form__field">
         <label className="task-form__label" htmlFor="task-title">
@@ -55,6 +85,7 @@ function TaskForm({ onAddTask }: TaskFormProps) {
         </label>
         <input
           id="task-title"
+          ref={titleRef}
           className={
             error
               ? 'task-form__input task-form__input--invalid'
@@ -63,7 +94,7 @@ function TaskForm({ onAddTask }: TaskFormProps) {
           type="text"
           value={title}
           onChange={handleTitleChange}
-          placeholder="Наприклад, Вивчити useState"
+          placeholder="Наприклад, Вивчити useReducer"
           aria-invalid={error !== ''}
           aria-describedby={error ? 'task-title-error' : undefined}
         />
@@ -122,9 +153,20 @@ function TaskForm({ onAddTask }: TaskFormProps) {
         </div>
       </div>
 
-      <button className="task-form__submit" type="submit">
-        Додати
-      </button>
+      <div className="task-form__actions">
+        <button className="task-form__submit" type="submit">
+          {isEditing ? 'Зберегти' : 'Додати'}
+        </button>
+        {isEditing && (
+          <button
+            className="task-form__cancel"
+            type="button"
+            onClick={cancelEditing}
+          >
+            Скасувати
+          </button>
+        )}
+      </div>
     </form>
   )
 }
