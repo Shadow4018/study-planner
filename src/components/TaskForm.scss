@@ -1,4 +1,4 @@
-@use '../variables' as *;
+@use '../styles/variables' as *;
 
 .task-form {
   display: flex;
@@ -66,8 +66,34 @@
     color: $color-danger;
   }
 
+  // Режим редагування: форма виділена рамкою кольору акценту.
+  &--editing {
+    box-shadow:
+      0 0 0 2px $color-primary,
+      $shadow;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  &__cancel {
+    padding: 9px 18px;
+    background: transparent;
+    border: 1px solid $color-border;
+    border-radius: 8px;
+    color: $color-muted;
+    cursor: pointer;
+    transition: border-color $transition, color $transition;
+
+    &:hover {
+      border-color: $color-text;
+      color: $color-text;
+    }
+  }
+
   &__submit {
-    align-self: flex-start;
     padding: 9px 22px;
     background: $color-primary;
     border: none;

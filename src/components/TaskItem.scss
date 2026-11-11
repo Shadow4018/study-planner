@@ -1,4 +1,4 @@
-@use '../variables' as *;
+@use '../styles/variables' as *;
 
 .task-item {
   display: flex;
@@ -74,11 +74,17 @@
       color: $color-success;
       font-weight: 600;
     }
+
+    &--pending {
+      color: $color-danger;
+      font-weight: 600;
+    }
   }
 
   &__actions {
     display: flex;
     flex-shrink: 0;
+    flex-wrap: wrap;
     gap: 8px;
   }
 
@@ -91,12 +97,22 @@
     transition: background $transition, color $transition,
       border-color $transition;
 
-    &--toggle:hover {
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    &--toggle:hover:not(:disabled) {
       border-color: $color-success;
       color: $color-success;
     }
 
-    &--delete:hover {
+    &--edit:hover:not(:disabled) {
+      border-color: $color-primary;
+      color: $color-primary;
+    }
+
+    &--delete:hover:not(:disabled) {
       background: $color-danger-bg;
       border-color: $color-danger;
       color: $color-danger;
@@ -113,5 +129,24 @@
       color: $color-muted;
       text-decoration: line-through;
     }
+  }
+
+  // Завдання очікує видалення (Undoable Delete): приглушене, червоний акцент.
+  &--pending-delete {
+    background: $color-danger-bg;
+    border-left-color: $color-danger;
+    opacity: 0.6;
+
+    .task-item__title {
+      color: $color-muted;
+    }
+  }
+
+  // Завдання, яке зараз редагується у формі.
+  &--editing {
+    border-left-color: $color-warning;
+    box-shadow:
+      0 0 0 2px $color-warning,
+      $shadow;
   }
 }

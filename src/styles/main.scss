@@ -1,14 +1,8 @@
 @use 'variables' as *;
-@use 'components/app';
-@use 'components/header';
-@use 'components/task-form';
-@use 'components/task-stats';
-@use 'components/task-filters';
-@use 'components/task-list';
-@use 'components/task-item';
 
-// Мінімальні глобальні стилі: лише reset і базова типографіка.
-// Стилі компонентів — окремі BEM-блоки (див. ./components).
+// Лише справді глобальні речі: reset, body і базова типографіка.
+// Стилі компонентів лежать поруч із ними (Component.scss) і підключаються
+// безпосередньо в .tsx файлі компонента.
 *,
 *::before,
 *::after {

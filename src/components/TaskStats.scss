@@ -1,4 +1,4 @@
-@use '../variables' as *;
+@use '../styles/variables' as *;
 
 .task-stats {
   display: flex;
@@ -40,20 +40,5 @@
     margin: 0;
     font-size: 1.5rem;
     font-weight: 700;
-  }
-
-  &__clear {
-    padding: 6px 14px;
-    background: transparent;
-    border: 1px solid $color-border;
-    border-radius: 8px;
-    color: $color-muted;
-    cursor: pointer;
-    transition: color $transition, border-color $transition;
-
-    &:hover {
-      border-color: $color-danger;
-      color: $color-danger;
-    }
   }
 }
