@@ -1,8 +1,8 @@
-/** Скільки (мс) користувач може скасувати видалення. */
-export const UNDO_DELAY_MS = 5000
+/** Розмір сторінки списку (параметр limit у запиті). */
+export const PAGE_SIZE = 10
 
-/** Як довго (мс) показується звичайний Toast. */
+/** Як довго (мс) показується Toast. */
 export const TOAST_DURATION_MS = 3000
 
-export const TASKS_STORAGE_KEY = 'study-planner:tasks'
+/** localStorage використовується лише для client/UI state (фільтр), не для даних із сервера. */
 export const FILTER_STORAGE_KEY = 'study-planner:filter'

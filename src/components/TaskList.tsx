@@ -1,27 +1,45 @@
 import { useTaskContext } from '../hooks/useTaskContext'
+import StatusMessage from './StatusMessage'
 import TaskItem from './TaskItem'
 import './TaskList.scss'
 
 function TaskList() {
-  const { tasks, filter } = useTaskContext()
+  const { tasks, status, errorMessage, retry, filter } = useTaskContext()
 
-  // Відфільтрований список — derived state: обчислюється під час рендеру.
+  // Три асинхронні стани: loading → error (з повтором) → success.
+  if (status === 'loading') {
+    return <StatusMessage variant="loading" message="Loading..." />
+  }
+
+  if (status === 'error') {
+    return (
+      <StatusMessage
+        variant="error"
+        message="Помилка завантаження."
+        details={errorMessage}
+        actionLabel="Спробувати ще"
+        onAction={retry}
+      />
+    )
+  }
+
+  // Фільтр — client/UI state: застосовується до завантаженої сторінки.
   const visibleTasks = tasks.filter((task) => {
     if (filter === 'completed') return task.completed
     if (filter === 'active') return !task.completed
     return true
   })
 
+  // Empty state: порожній результат не виглядає як зламаний інтерфейс.
   if (visibleTasks.length === 0) {
-    return tasks.length === 0 ? (
-      <div className="task-list task-list--empty">
-        <p className="task-list__message">Завдань поки немає.</p>
-        <p className="task-list__hint">Додайте перше навчальне завдання.</p>
-      </div>
-    ) : (
-      <div className="task-list task-list--empty">
-        <p className="task-list__message">За цим фільтром завдань немає.</p>
-      </div>
+    return (
+      <StatusMessage
+        variant="empty"
+        message="Завдань не знайдено."
+        details={
+          tasks.length > 0 ? 'За цим фільтром на цій сторінці завдань немає.' : null
+        }
+      />
     )
   }
 

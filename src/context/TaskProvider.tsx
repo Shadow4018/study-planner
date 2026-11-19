@@ -1,23 +1,13 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import {
-  FILTER_STORAGE_KEY,
-  TASKS_STORAGE_KEY,
-  UNDO_DELAY_MS,
-} from '../constants'
-import { initialTasks } from '../data/initialTasks'
+import { getErrorMessage, normalizeError } from '../api/errors'
+import { FILTER_STORAGE_KEY, PAGE_SIZE } from '../constants'
 import { useLocalStorage } from '../hooks/useLocalStorage'
-import { createInitialState, taskReducer } from '../reducers/taskReducer'
-import type { NewTaskData, TaskFilter } from '../types/task'
-import { isTaskFilter, isTaskList } from '../utils/guards'
-import { readStorage, writeStorage } from '../utils/storage'
+import { useTaskPage } from '../hooks/useTaskPage'
+import { taskRepository } from '../repositories/taskRepository'
+import type { TaskPage } from '../repositories/taskRepository'
+import type { NewTaskData, Task, TaskFilter } from '../types/task'
+import { isTaskFilter } from '../utils/guards'
 import { TaskContext } from './TaskContext'
 import type { TaskContextValue, ToastData, ToastVariant } from './TaskContext'
 
@@ -25,24 +15,55 @@ interface TaskProviderProps {
   children: ReactNode
 }
 
-export function TaskProvider({ children }: TaskProviderProps) {
-  // tasks — єдине джерело правди, ним керує лише reducer.
-  // Початковий стан читається з localStorage (пошкоджені дані → initialTasks).
-  const [state, dispatch] = useReducer(taskReducer, undefined, () =>
-    createInitialState(readStorage(TASKS_STORAGE_KEY, initialTasks, isTaskList)),
-  )
+// Чисті функції для локального оновлення server state після успішної mutation.
+const replaceTask = (task: Task) => (page: TaskPage): TaskPage => ({
+  ...page,
+  tasks: page.tasks.map((t) => (t.id === task.id ? task : t)),
+})
 
-  // Активний фільтр — окремий, незалежний від tasks шматок стану.
+const patchTask =
+  (id: number, changes: Partial<Task>) =>
+  (page: TaskPage): TaskPage => ({
+    ...page,
+    tasks: page.tasks.map((t) => (t.id === id ? { ...t, ...changes } : t)),
+  })
+
+const removeTask = (id: number) => (page: TaskPage): TaskPage => ({
+  ...page,
+  tasks: page.tasks.filter((t) => t.id !== id),
+  total: Math.max(0, page.total - 1),
+})
+
+const prependTask = (task: Task) => (page: TaskPage): TaskPage => ({
+  ...page,
+  tasks: [task, ...page.tasks],
+  total: page.total + 1,
+})
+
+const EMPTY_TASKS: Task[] = []
+
+export function TaskProvider({ children }: TaskProviderProps) {
+  // ── client/UI state ─────────────────────────────────────────────────────
+  const [page, setPage] = useState(1)
   const [filter, setFilter] = useLocalStorage<TaskFilter>(
     FILTER_STORAGE_KEY,
     'all',
     isTaskFilter,
   )
-
-  const [editingId, setEditingId] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [busyIds, setBusyIds] = useState<number[]>([])
   const [toast, setToast] = useState<ToastData | null>(null)
   const toastSeq = useRef(0)
 
+  // ── server state: сторінка завдань з API (з можливістю скасування) ──────
+  const { status, data, error, retry, mutate } = useTaskPage(page)
+
+  const tasks = data?.tasks ?? EMPTY_TASKS
+  const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const errorMessage = error ? getErrorMessage(error) : null
+
+  // ── toast ───────────────────────────────────────────────────────────────
   const showToast = useCallback(
     (message: string, variant: ToastVariant = 'success') => {
       toastSeq.current += 1
@@ -50,137 +71,158 @@ export function TaskProvider({ children }: TaskProviderProps) {
     },
     [],
   )
-
   const dismissToast = useCallback(() => setToast(null), [])
 
-  // ── Effect 1: таймер Undoable Delete ────────────────────────────────────
-  // Таймер — побічний ефект, тому він тут, а не в reducer. Cleanup гарантує,
-  // що при Undo, новому видаленні або unmount старий таймер буде скасовано.
-  const { pending } = state
-  useEffect(() => {
-    if (!pending) return
-
-    const { ids } = pending
-    const timerId = setTimeout(() => {
-      dispatch({ type: 'confirmDelete' })
-      setEditingId((current) =>
-        current !== null && ids.includes(current) ? null : current,
-      )
-      showToast(
-        ids.length === 1
-          ? 'Завдання видалено'
-          : `Видалено завдань: ${ids.length}`,
-      )
-    }, UNDO_DELAY_MS)
-
-    return () => clearTimeout(timerId)
-  }, [pending, showToast])
-
-  // ── Effect 2: синхронізація tasks → localStorage ────────────────────────
-  useEffect(() => {
-    const saved = writeStorage(TASKS_STORAGE_KEY, state.tasks)
-    if (!saved) showToast('Не вдалося зберегти дані в браузері', 'error')
-  }, [state.tasks, showToast])
-
-  // ── Операції для компонентів ────────────────────────────────────────────
-  const addTask = useCallback(
-    (data: NewTaskData) => {
-      dispatch({ type: 'add', payload: data })
-      showToast('Завдання створено')
+  const reportError = useCallback(
+    (cause: unknown) => {
+      showToast(getErrorMessage(normalizeError(cause)), 'error')
     },
     [showToast],
   )
 
-  const updateTask = useCallback(
-    (id: number, data: NewTaskData) => {
-      dispatch({ type: 'update', payload: { id, data } })
-      setEditingId(null)
-      showToast('Зміни збережено')
-    },
-    [showToast],
-  )
-
-  const toggleTask = useCallback((id: number) => {
-    dispatch({ type: 'toggle', payload: { id } })
-  }, [])
-
-  const requestDelete = useCallback((id: number) => {
-    dispatch({ type: 'requestDelete', payload: { id } })
-    setEditingId((current) => (current === id ? null : current))
-  }, [])
-
-  const undoDelete = useCallback(() => {
-    dispatch({ type: 'undoDelete' })
-    showToast('Видалення скасовано', 'info')
-  }, [showToast])
-
-  const clearCompleted = useCallback(() => {
-    const hasCompleted = state.tasks.some(
-      (task) => task.completed && !state.pending?.ids.includes(task.id),
+  const setBusy = useCallback((id: number, busy: boolean) => {
+    setBusyIds((ids) =>
+      busy ? [...ids, id] : ids.filter((current) => current !== id),
     )
-    if (!hasCompleted) {
-      showToast('Немає виконаних завдань для очищення', 'error')
-      return
-    }
-    dispatch({ type: 'clearCompleted' })
-  }, [state.tasks, state.pending, showToast])
+  }, [])
 
-  const resetTasks = useCallback(() => {
-    dispatch({ type: 'reset' })
-    setFilter('all')
-    setEditingId(null)
-    showToast('Дані скинуто до початкових', 'info')
-  }, [setFilter, showToast])
+  // ── навігація ───────────────────────────────────────────────────────────
+  const goToPage = useCallback(
+    (next: number) => setPage(Math.min(Math.max(1, next), totalPages)),
+    [totalPages],
+  )
+  const selectTask = useCallback((id: number) => setSelectedId(id), [])
+  const closeDetails = useCallback(() => setSelectedId(null), [])
 
-  const startEditing = useCallback((id: number) => setEditingId(id), [])
-  const cancelEditing = useCallback(() => setEditingId(null), [])
+  // ── операції: HTTP через repository, потім оновлення client state ───────
+  // DummyJSON не зберігає зміни, тому UI оновлюємо самі після успішної відповіді.
+  const createTask = useCallback(
+    async (input: NewTaskData) => {
+      try {
+        const task = await taskRepository.create(input)
+        mutate(prependTask(task))
+        showToast('Завдання створено')
+        return true
+      } catch (cause) {
+        reportError(cause)
+        return false
+      }
+    },
+    [mutate, showToast, reportError],
+  )
 
-  // Завдання, яке вже очікує видалення, редагувати не можна.
-  const editingTask = useMemo(() => {
-    if (editingId === null || state.pending?.ids.includes(editingId)) {
-      return null
-    }
-    return state.tasks.find((task) => task.id === editingId) ?? null
-  }, [editingId, state.tasks, state.pending])
+  // Optimistic update: інтерфейс змінюється одразу, а при помилці — відкочується.
+  const toggleTask = useCallback(
+    async (id: number) => {
+      const current = tasks.find((t) => t.id === id)
+      if (!current || busyIds.includes(id)) return false
 
-  // Значення контексту мемоїзоване: новий об'єкт створюється лише тоді,
-  // коли змінилось щось із того, що в ньому лежить.
+      setBusy(id, true)
+      mutate(patchTask(id, { completed: !current.completed }))
+      try {
+        const updated = await taskRepository.update(id, {
+          completed: !current.completed,
+        })
+        mutate(replaceTask(updated))
+        return true
+      } catch (cause) {
+        mutate(patchTask(id, { completed: current.completed }))
+        reportError(cause)
+        return false
+      } finally {
+        setBusy(id, false)
+      }
+    },
+    [tasks, busyIds, mutate, setBusy, reportError],
+  )
+
+  const renameTask = useCallback(
+    async (id: number, title: string) => {
+      if (busyIds.includes(id)) return false
+
+      setBusy(id, true)
+      try {
+        const updated = await taskRepository.update(id, { title })
+        mutate(patchTask(id, { title: updated.title }))
+        showToast('Назву змінено')
+        return true
+      } catch (cause) {
+        reportError(cause)
+        return false
+      } finally {
+        setBusy(id, false)
+      }
+    },
+    [busyIds, mutate, setBusy, showToast, reportError],
+  )
+
+  const deleteTask = useCallback(
+    async (id: number) => {
+      if (busyIds.includes(id)) return false
+
+      setBusy(id, true)
+      try {
+        await taskRepository.delete(id)
+        mutate(removeTask(id))
+        setSelectedId((current) => (current === id ? null : current))
+        // Якщо видалили останнє завдання на сторінці — повертаємось на попередню.
+        if (tasks.length === 1 && page > 1) setPage(page - 1)
+        showToast('Завдання видалено')
+        return true
+      } catch (cause) {
+        reportError(cause)
+        return false
+      } finally {
+        setBusy(id, false)
+      }
+    },
+    [busyIds, tasks.length, page, mutate, setBusy, showToast, reportError],
+  )
+
   const value = useMemo<TaskContextValue>(
     () => ({
-      tasks: state.tasks,
+      tasks,
+      total,
+      status,
+      errorMessage,
+      retry,
+      page,
+      totalPages,
+      goToPage,
       filter,
       setFilter,
-      editingTask,
-      startEditing,
-      cancelEditing,
-      addTask,
-      updateTask,
-      toggleTask,
-      requestDelete,
-      undoDelete,
-      clearCompleted,
-      resetTasks,
-      pendingDeletion: state.pending,
+      selectedId,
+      selectTask,
+      closeDetails,
+      busyIds,
       toast,
       dismissToast,
+      createTask,
+      toggleTask,
+      renameTask,
+      deleteTask,
     }),
     [
-      state.tasks,
-      state.pending,
+      tasks,
+      total,
+      status,
+      errorMessage,
+      retry,
+      page,
+      totalPages,
+      goToPage,
       filter,
       setFilter,
-      editingTask,
-      startEditing,
-      cancelEditing,
-      addTask,
-      updateTask,
-      toggleTask,
-      requestDelete,
-      undoDelete,
-      clearCompleted,
-      resetTasks,
+      selectedId,
+      selectTask,
+      closeDetails,
+      busyIds,
       toast,
       dismissToast,
+      createTask,
+      toggleTask,
+      renameTask,
+      deleteTask,
     ],
   )
 

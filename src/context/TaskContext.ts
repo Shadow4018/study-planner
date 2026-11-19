@@ -1,6 +1,6 @@
 import { createContext } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import type { PendingDeletion } from '../reducers/taskReducer'
+import type { AsyncStatus } from '../hooks/useAsyncData'
 import type { NewTaskData, Task, TaskFilter } from '../types/task'
 
 export type ToastVariant = 'success' | 'error' | 'info'
@@ -12,32 +12,40 @@ export interface ToastData {
 }
 
 /**
- * Публічний API контексту. Компоненти бачать дані та операції,
- * але нічого не знають ні про reducer, ні про таймери.
+ * Публічний API контексту.
+ *
+ * Server state (tasks, total, status, errorMessage) — дані з REST API; єдине
+ * джерело правди — хук useTaskPage всередині Provider.
+ * Client/UI state — поточна сторінка, фільтр, вибране завдання, toast.
+ * Операції повертають true/false (успіх) і самі показують повідомлення про помилку.
  */
 export interface TaskContextValue {
+  // ── server state ──
   tasks: Task[]
+  total: number
+  status: AsyncStatus
+  errorMessage: string | null
+  retry: () => void
+
+  // ── client/UI state ──
+  page: number
+  totalPages: number
+  goToPage: (page: number) => void
   filter: TaskFilter
   setFilter: Dispatch<SetStateAction<TaskFilter>>
-
-  /** Завдання, яке зараз редагується (null — форма в режимі створення). */
-  editingTask: Task | null
-  startEditing: (id: number) => void
-  cancelEditing: () => void
-
-  addTask: (data: NewTaskData) => void
-  updateTask: (id: number, data: NewTaskData) => void
-  toggleTask: (id: number) => void
-  requestDelete: (id: number) => void
-  undoDelete: () => void
-  clearCompleted: () => void
-  resetTasks: () => void
-
-  /** Активне Undoable Delete (null — нічого не очікує видалення). */
-  pendingDeletion: PendingDeletion | null
-  /** Поточне повідомлення Toast (null — нічого показувати). */
+  selectedId: number | null
+  selectTask: (id: number) => void
+  closeDetails: () => void
+  /** id завдань, для яких зараз виконується запит (кнопки блокуються). */
+  busyIds: number[]
   toast: ToastData | null
   dismissToast: () => void
+
+  // ── операції (через taskRepository) ──
+  createTask: (data: NewTaskData) => Promise<boolean>
+  toggleTask: (id: number) => Promise<boolean>
+  renameTask: (id: number, title: string) => Promise<boolean>
+  deleteTask: (id: number) => Promise<boolean>
 }
 
 export const TaskContext = createContext<TaskContextValue | null>(null)

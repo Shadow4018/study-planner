@@ -1,5 +1,3 @@
-@use '../styles/variables' as *;
-
 .task-list {
   display: flex;
   flex-direction: column;
@@ -7,22 +5,4 @@
   margin: 0;
   padding: 0;
   list-style: none;
-
-  &--empty {
-    padding: 32px 16px;
-    background: $color-surface;
-    border: 2px dashed $color-border;
-    border-radius: $radius;
-    text-align: center;
-  }
-
-  &__message {
-    margin: 0;
-    font-weight: 600;
-  }
-
-  &__hint {
-    margin: 4px 0 0;
-    color: $color-muted;
-  }
 }

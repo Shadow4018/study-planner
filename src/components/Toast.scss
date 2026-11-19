@@ -1,9 +1,12 @@
 @use '../styles/variables' as *;
 
 .toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 260px;
   max-width: 420px;
-  overflow: hidden;
+  padding: 12px 14px;
   background: $color-text;
   border-left: 4px solid $color-primary;
   border-radius: $radius;
@@ -24,31 +27,9 @@
     border-left-color: #818cf8;
   }
 
-  &__content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-  }
-
   &__message {
     flex: 1;
     margin: 0;
-  }
-
-  &__action {
-    padding: 4px 10px;
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 6px;
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background $transition;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.15);
-    }
   }
 
   &__close {
@@ -64,20 +45,6 @@
       color: #fff;
     }
   }
-
-  &__progress {
-    height: 4px;
-    background: rgba(255, 255, 255, 0.15);
-  }
-
-  &__progress-bar {
-    height: 100%;
-    background: #818cf8;
-    transform-origin: left center;
-    animation-name: toast-progress;
-    animation-timing-function: linear;
-    animation-fill-mode: forwards;
-  }
 }
 
 @keyframes toast-in {
@@ -89,15 +56,5 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes toast-progress {
-  from {
-    transform: scaleX(1);
-  }
-
-  to {
-    transform: scaleX(0);
   }
 }

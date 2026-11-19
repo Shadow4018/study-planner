@@ -12,7 +12,7 @@
   box-shadow: $shadow;
   transition: opacity $transition, background $transition;
 
-  @media (max-width: 520px) {
+  @media (max-width: 640px) {
     flex-direction: column;
   }
 
@@ -74,18 +74,40 @@
       color: $color-success;
       font-weight: 600;
     }
-
-    &--pending {
-      color: $color-danger;
-      font-weight: 600;
-    }
   }
 
-  &__actions {
+  &__actions,
+  &__confirm {
     display: flex;
     flex-shrink: 0;
     flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
+  }
+
+  &__confirm-text {
+    color: $color-danger;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  &__edit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  &__edit-input {
+    flex: 1;
+    min-width: 160px;
+    padding: 6px 10px;
+    border: 1px solid $color-primary;
+    border-radius: 8px;
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
   }
 
   &__button {
@@ -100,6 +122,12 @@
     &:disabled {
       cursor: not-allowed;
       opacity: 0.5;
+    }
+
+    &--primary {
+      background: $color-primary;
+      border-color: $color-primary;
+      color: #fff;
     }
 
     &--toggle:hover:not(:disabled) {
@@ -123,7 +151,6 @@
   &--completed {
     background: #f8faf8;
     border-left-color: $color-success;
-    opacity: 0.8;
 
     .task-item__title {
       color: $color-muted;
@@ -131,22 +158,15 @@
     }
   }
 
-  // Завдання очікує видалення (Undoable Delete): приглушене, червоний акцент.
-  &--pending-delete {
-    background: $color-danger-bg;
-    border-left-color: $color-danger;
-    opacity: 0.6;
-
-    .task-item__title {
-      color: $color-muted;
-    }
+  // Завдання, деталі якого відкриті.
+  &--selected {
+    box-shadow:
+      0 0 0 2px $color-primary,
+      $shadow;
   }
 
-  // Завдання, яке зараз редагується у формі.
-  &--editing {
-    border-left-color: $color-warning;
-    box-shadow:
-      0 0 0 2px $color-warning,
-      $shadow;
+  // Для цього завдання виконується запит.
+  &--busy {
+    opacity: 0.7;
   }
 }

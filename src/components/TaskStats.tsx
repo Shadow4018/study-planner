@@ -2,12 +2,13 @@ import { useTaskContext } from '../hooks/useTaskContext'
 import './TaskStats.scss'
 
 function TaskStats() {
-  const { tasks } = useTaskContext()
+  const { tasks, total, status } = useTaskContext()
 
-  // Похідні дані: рахуються під час рендеру, без окремого state та useEffect.
-  const total = tasks.length
+  // «Всього» — з відповіді сервера (total); виконані/невиконані — для
+  // завантаженої сторінки (derived data, без окремого state).
   const completed = tasks.filter((task) => task.completed).length
-  const active = total - completed
+  const active = tasks.length - completed
+  const isReady = status === 'success'
 
   return (
     <section className="task-stats" aria-label="Статистика завдань">
@@ -17,12 +18,12 @@ function TaskStats() {
           <dd className="task-stats__value">{total}</dd>
         </div>
         <div className="task-stats__item task-stats__item--completed">
-          <dt className="task-stats__label">Виконано</dt>
-          <dd className="task-stats__value">{completed}</dd>
+          <dt className="task-stats__label">Виконано на сторінці</dt>
+          <dd className="task-stats__value">{isReady ? completed : '—'}</dd>
         </div>
         <div className="task-stats__item task-stats__item--active">
-          <dt className="task-stats__label">Не виконано</dt>
-          <dd className="task-stats__value">{active}</dd>
+          <dt className="task-stats__label">Не виконано на сторінці</dt>
+          <dd className="task-stats__value">{isReady ? active : '—'}</dd>
         </div>
       </dl>
     </section>

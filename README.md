@@ -2,94 +2,106 @@
 
 Навчальний застосунок для лабораторних робіт з React. Vite + React 19 + TypeScript, SCSS + BEM, ESLint.
 
-- **Лаб. №8** — компоненти, props, `useState`, події, списки, умовний рендеринг.
-- **Лаб. №9** — `useReducer`, Context API, `useEffect`, `localStorage`, custom hooks, Toast, Undoable Delete.
+- **Лаб. №8** — компоненти, props, `useState`, події, списки.
+- **Лаб. №9** — `useReducer`, Context, `useEffect`, `localStorage`, custom hooks.
+- **Лаб. №10** — REST API (DummyJSON), `fetch`, repository, loading/error/empty стани,
+  пагінація, деталі, CRUD, `AbortController`.
 
 ## Запуск
 
 Потрібен Node.js 22.22 або новіший.
 
 ```bash
+cp .env.example .env     # адреса API (VITE_API_URL=https://dummyjson.com)
 npm install
-npm run dev      # режим розробки
-npm run lint     # ESLint
-npm run build    # tsc -b + збірка Vite
+npm run dev              # режим розробки
+npm run lint
+npm run build
 ```
 
-## Структура (лаб. №9)
+Файл `.env` не комітиться (він у `.gitignore`), шаблон — `.env.example`.
+Без `VITE_API_URL` застосунок покаже зрозумілу помилку конфігурації.
+
+## Архітектура (лаб. №10)
+
+```
+UI-компоненти ──► Context/Provider ──► taskRepository ──► httpClient ──► fetch
+ (components/)     (context/, hooks/)   (repositories/)       (api/)
+```
 
 ```
 src/
-├── components/            # кожен компонент має поруч власний .scss (BEM)
-│   ├── Header
-│   ├── TaskForm           # створення і редагування (один компонент, два режими)
-│   ├── TaskStats
-│   ├── TaskFilters
-│   ├── TaskList
-│   ├── TaskItem
-│   ├── TaskActions        # «Очистити виконані», «Скинути дані»
-│   ├── Toast              # презентаційний компонент (автозакриття, дія, прогрес)
-│   └── ToastContainer     # показує Undo-toast і звичайні toast-повідомлення
-├── context/
-│   ├── TaskContext.ts     # createContext + тип API
-│   └── TaskProvider.tsx   # useReducer, таймер, localStorage, toast
+├── api/
+│   ├── httpClient.ts      # fetch: URL з VITE_API_URL, JSON, перевірка response.ok, AbortSignal
+│   ├── errors.ts          # ApiError, normalizeError, getErrorMessage, isAbortError
+│   └── types.ts           # DTO формату DummyJSON (ApiTodo, TodosResponse)
+├── repositories/
+│   └── taskRepository.ts  # getAll / getById / create / update / delete, mapping DTO ↔ Task
 ├── hooks/
-│   ├── useTaskContext.ts  # доступ до контексту (помилка поза Provider)
-│   ├── useLocalStorage.ts # useState + localStorage (використовується для фільтра)
-│   └── useDocumentTitle.ts
-├── reducers/
-│   └── taskReducer.ts     # чиста функція, типізовані actions
-├── utils/                 # безпечна робота зі storage, type guards
-├── data/  types/  styles/ # початкові дані, типи, змінні та глобальні стилі
-├── constants.ts
-├── App.tsx
-└── main.tsx
+│   ├── useAsyncData.ts    # loading/success/error + скасування запитів (AbortController)
+│   ├── useTaskPage.ts     # server state: сторінка завдань (limit/skip)
+│   ├── useTaskDetails.ts  # server state: деталі одного завдання
+│   ├── useTaskContext.ts, useLocalStorage.ts, useDocumentTitle.ts
+├── context/               # TaskProvider: server state + client/UI state + операції
+├── components/            # Header, TaskForm, TaskStats, TaskFilters, TaskList, TaskItem,
+│                          # TaskDetails, Pagination, StatusMessage, Toast, ToastContainer
+├── pages/TasksPage.tsx
+└── utils/, data/, types/, styles/, constants.ts
 ```
 
-## Як це працює
+**Розподіл відповідальності.** Компоненти не містять URL, `fetch` чи DTO — вони викликають
+операції з Context. Provider викликає `taskRepository`. Repository знає endpoint-и й
+перетворює `ApiTodo` на доменну модель `Task`. `httpClient` — єдине місце з `fetch`.
 
-**State.** `tasks` керує тільки `taskReducer`. Він підтримує дії `add`, `toggle`, `update`,
-`requestDelete`, `confirmDelete`, `undoDelete`, `clearCompleted`, `reset` і не містить
-таймерів, DOM чи `localStorage` (чиста функція).
-Фільтр — окремий state у `useLocalStorage`. Відфільтрований список і статистика —
-derived data: рахуються під час render, без `useEffect`.
+**Server state vs client/UI state.**
 
-**Context.** `TaskProvider` надає компонентам `tasks`, `filter` та операції
-(`addTask`, `updateTask`, `requestDelete`, `undoDelete` тощо). Значення контексту
-мемоїзоване (`useMemo` + `useCallback`). Компоненти не знають про reducer і таймери.
+| Server state (з API) | Client/UI state |
+|---|---|
+| список завдань сторінки, `total` | номер сторінки, фільтр, вибране завдання |
+| деталі завдання | режим редагування, підтвердження видалення |
+| статус запиту: loading / success / error | toast, `isSubmitting` форми |
 
-**Effects** (всі в `TaskProvider`, крім заголовка):
+Дані завдань більше не зберігаються в `localStorage` і не дублюються: єдине джерело —
+результат запиту в `useAsyncData`. У `localStorage` лишається лише UI-налаштування (фільтр).
 
-| Effect | Залежності | Cleanup |
-|---|---|---|
-| таймер Undoable Delete (5 с → `confirmDelete`) | `pending` | `clearTimeout` |
-| синхронізація `tasks` → `localStorage` | `state.tasks` | — |
-| `document.title` = «Study Planner — N active tasks» | `title` | — |
-| автозакриття Toast | `autoCloseMs` | `clearTimeout` |
+**Стани інтерфейсу.** Loading (`Loading...`), error (`Помилка завантаження.` + «Спробувати ще»),
+empty (`Завдань не знайдено.`), блокування кнопок під час запитів, toast про успіх і помилки.
 
-**Undoable Delete.** «Видалити» → `requestDelete`: завдання лишається в масиві, але
-потрапляє в `pending` (приглушений вигляд, напис «Буде видалено», кнопки неактивні).
-З'являється Toast із прогресом 5 с та кнопкою «Скасувати». Undo → `undoDelete`,
-таймер скасовується. Минули 5 с → `confirmDelete`, завдання видаляється остаточно.
-Одночасно діє одне видалення: нове запускається після негайного підтвердження попереднього.
-«Очистити виконані» працює через той самий flow (`clearCompleted`).
+**Скасування запитів.** `useAsyncData` створює `AbortController` для кожного запиту та
+викликає `abort()` в cleanup `useEffect`: при швидкому перемиканні сторінок/завдань і при
+unmount попередній запит скасовується, а скасування (`AbortError`) не показується як помилка.
 
-**localStorage.** При старті `tasks` читаються зі сховища. Якщо даних немає, JSON
-пошкоджений або має неправильну форму, використовується початковий список.
-Незавершене видалення після перезавантаження не відновлюється (завдання просто на місці).
+**Операції.** Створення (`POST /todos/add`), оновлення (`PATCH /todos/:id`), видалення
+(`DELETE /todos/:id`), деталі (`GET /todos/:id`), список (`GET /todos?limit=10&skip=N`).
+Перемикання статусу — optimistic update з відкатом при помилці. Видалення — з
+підтвердженням у інтерфейсі (без `alert`).
+
+## Особливості DummyJSON
+
+DummyJSON лише **симулює** зміни й нічого не зберігає, тому:
+
+- після кожної успішної mutation клієнт сам оновлює state; після перезавантаження сторінки
+  (або повторного завантаження сторінки списку) зміни зникають — це очікувана поведінка;
+- `POST /todos/add` завжди повертає `id: 255`, а запису на сервері не створюється: щоб
+  створені завдання мали унікальні id й працювали (деталі, статус, видалення), repository
+  видає їм клієнтські id та тримає в пам'яті, не надсилаючи для них PATCH/DELETE/GET (вони б
+  повернули 404). Для реального API цей блок не потрібен;
+- API не має полів `description`, `priority`, `category` — це client-only metadata:
+  в API вони не відправляються, для завдань з сервера мають значення за замовчуванням;
+- фільтр «Всі / Виконані / Не виконані» застосовується до завантаженої сторінки.
 
 ## Що показати на захисті
 
-1. Створення / редагування завдання → Toast.
-2. «Видалити» → прогрес → «Скасувати».
-3. «Видалити» → почекати 5 с → завдання зникло.
-4. Перезавантажити сторінку → дані та фільтр на місці.
-5. Компоненти, що беруть дані з Context: `TaskList`, `TaskItem`, `TaskStats`, `TaskFilters`.
-6. Код: `useReducer` і `useEffect` — у `TaskProvider.tsx`, `useTaskContext` і `useLocalStorage` — у `hooks/`.
+1. Перезавантажити сторінку: `Loading...` → список із API (вкладка Network: `GET /todos?limit=10&skip=0`).
+2. Пагінація; швидко натиснути «Вперед» кілька разів — у Network попередні запити `canceled`.
+3. Вимкнути мережу (DevTools → Offline) → «Помилка завантаження» → увімкнути → «Спробувати ще».
+4. «Деталі» → окремий запит `GET /todos/:id`.
+5. Створити, відмітити, перейменувати, видалити завдання → відповідні запити й toast.
+6. Код: `api/httpClient.ts`, `repositories/taskRepository.ts`, `hooks/useAsyncData.ts`.
 
 ## Git
 
 ```bash
-git checkout -b feature/state-effects
-git commit -m "feat(lab-09): add reducer context and persistence"
+git checkout -b feature/rest-api
+git commit -m "feat(lab-10): integrate rest api"
 ```
