@@ -6,34 +6,19 @@ export type AsyncStatus = 'loading' | 'success' | 'error'
 
 export interface AsyncResult<T> {
   status: AsyncStatus
-  /** Останні успішно отримані дані (зберігаються і під час наступного loading). */
   data: T | null
   error: ApiError | null
-  /** Повторити запит (наприклад, після помилки). */
   retry: () => void
-  /** Локально змінити дані після успішної mutation (server state у клієнті). */
   mutate: (updater: (current: T) => T) => void
 }
 
 interface Settled<T> {
-  /** Для якого запиту (load + номер спроби) отримано цей результат. */
   load: (signal: AbortSignal) => Promise<T>
   attempt: number
   outcome: 'success' | 'error'
   error: ApiError | null
 }
 
-/**
- * Асинхронне завантаження з можливістю скасування.
- *
- * - Запит запускається при монтуванні та щоразу, коли змінюється `load`
- *   (передавайте його через useCallback — зміна залежностей = новий запит).
- * - Cleanup викликає controller.abort(): попередній запит скасовується при
- *   переході на іншу сторінку та при unmount компонента.
- * - Скасований запит НЕ перетворюється на помилку й не змінює state.
- * - Статус `loading` — похідний: якщо результат належить іншому запиту, ніж
- *   поточний, інтерфейс одразу вважається таким, що завантажується.
- */
 export function useAsyncData<T>(
   load: (signal: AbortSignal) => Promise<T>,
 ): AsyncResult<T> {

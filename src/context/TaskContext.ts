@@ -11,14 +11,6 @@ export interface ToastData {
   variant: ToastVariant
 }
 
-/**
- * Публічний API контексту.
- *
- * Server state (tasks, total, status, errorMessage) — дані з REST API; єдине
- * джерело правди — хук useTaskPage всередині Provider.
- * Client/UI state — поточна сторінка, фільтр, вибране завдання, toast.
- * Операції повертають true/false (успіх) і самі показують повідомлення про помилку.
- */
 export interface TaskContextValue {
   // ── server state ──
   tasks: Task[]

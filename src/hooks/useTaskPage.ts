@@ -5,10 +5,6 @@ import type { TaskPage } from '../repositories/taskRepository'
 import { useAsyncData } from './useAsyncData'
 import type { AsyncResult } from './useAsyncData'
 
-/**
- * Server state: одна сторінка завдань. Зміна `page` створює новий `load`,
- * а useAsyncData скасовує попередній запит і запускає новий.
- */
 export function useTaskPage(page: number): AsyncResult<TaskPage> {
   const load = useCallback(
     (signal: AbortSignal) =>

@@ -1,10 +1,3 @@
-/**
- * Централізована нормалізація помилок.
- * Що б не пішло не так (мережа, HTTP-статус, неправильний JSON, відсутній
- * VITE_API_URL), вищі рівні отримують один тип — ApiError — і не розбираються
- * у деталях fetch.
- */
-
 export type ApiErrorKind = 'network' | 'http' | 'parse' | 'config'
 
 export class ApiError extends Error {
@@ -20,12 +13,10 @@ export class ApiError extends Error {
   }
 }
 
-/** Скасований через AbortController запит — це не помилка для користувача. */
 export function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
-/** Приводить будь-який виняток до ApiError. */
 export function normalizeError(error: unknown): ApiError {
   if (error instanceof ApiError) return error
   return new ApiError(
@@ -34,7 +25,6 @@ export function normalizeError(error: unknown): ApiError {
   )
 }
 
-/** Зрозуміле для користувача повідомлення (без технічних подробиць). */
 export function getErrorMessage(error: ApiError): string {
   switch (error.kind) {
     case 'network':

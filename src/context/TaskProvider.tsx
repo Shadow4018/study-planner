@@ -15,7 +15,6 @@ interface TaskProviderProps {
   children: ReactNode
 }
 
-// Чисті функції для локального оновлення server state після успішної mutation.
 const replaceTask = (task: Task) => (page: TaskPage): TaskPage => ({
   ...page,
   tasks: page.tasks.map((t) => (t.id === task.id ? task : t)),
@@ -95,7 +94,6 @@ export function TaskProvider({ children }: TaskProviderProps) {
   const closeDetails = useCallback(() => setSelectedId(null), [])
 
   // ── операції: HTTP через repository, потім оновлення client state ───────
-  // DummyJSON не зберігає зміни, тому UI оновлюємо самі після успішної відповіді.
   const createTask = useCallback(
     async (input: NewTaskData) => {
       try {
@@ -165,7 +163,6 @@ export function TaskProvider({ children }: TaskProviderProps) {
         await taskRepository.delete(id)
         mutate(removeTask(id))
         setSelectedId((current) => (current === id ? null : current))
-        // Якщо видалили останнє завдання на сторінці — повертаємось на попередню.
         if (tasks.length === 1 && page > 1) setPage(page - 1)
         showToast('Завдання видалено')
         return true

@@ -6,7 +6,6 @@ import type { AsyncResult } from './useAsyncData'
 
 /**
  * Деталі одного завдання через taskRepository.getById(id).
- * Дані живуть у локальному state компонента, а не в глобальному Context.
  */
 export function useTaskDetails(id: number): AsyncResult<Task> {
   const load = useCallback(

@@ -2,10 +2,6 @@ import { httpClient } from '../api/httpClient'
 import type { ApiTodo, TodosResponse } from '../api/types'
 import type { NewTaskData, Task } from '../types/task'
 
-/**
- * Repository для Task: єдине місце, яке знає endpoint-и DummyJSON та формат DTO.
- * UI отримує й віддає лише доменну модель Task.
- */
 
 const TODOS = '/todos'
 const DEFAULT_USER_ID = 1
@@ -28,12 +24,8 @@ interface GetAllParams {
   signal?: AbortSignal
 }
 
-// ── Mapping DTO ↔ domain ──────────────────────────────────────────────────
+// ── Mapping DTO - domain ──────────────────────────────────────────────────
 
-/**
- * DummyJSON не зберігає description, priority і category — вони лишаються
- * client-only metadata зі значеннями за замовчуванням (поля API не вигадуємо).
- */
 function toTask(todo: ApiTodo): Task {
   return {
     id: todo.id,
@@ -52,15 +44,6 @@ function toApiPatch(patch: TaskPatch): Partial<Pick<ApiTodo, 'todo' | 'completed
   return body
 }
 
-// ── Завдання, створені в цій сесії ────────────────────────────────────────
-//
-// DummyJSON лише СИМУЛЮЄ створення: POST /todos/add завжди повертає той самий
-// id (255), а запису на сервері не з'являється — тому GET/PATCH/DELETE за цим
-// id повертають 404. Щоб створені завдання мали унікальні id і з ними можна
-// було працювати (відкрити деталі, відмітити, перейменувати, видалити),
-// repository видає їм клієнтські id та тримає їх у пам'яті. Для реального
-// API цей блок не потрібен: його замінила б відповідь сервера.
-
 const LOCAL_ID_START = 1_000_000
 let nextLocalId = LOCAL_ID_START
 const localTasks = new Map<number, Task>()
@@ -72,7 +55,6 @@ function isLocalId(id: number): boolean {
 // ── Публічний API repository ──────────────────────────────────────────────
 
 export const taskRepository = {
-  /** Одна сторінка завдань (limit/skip). */
   async getAll({ limit, skip, signal }: GetAllParams): Promise<TaskPage> {
     const data = await httpClient.get<TodosResponse>(TODOS, {
       query: { limit, skip },
@@ -95,7 +77,6 @@ export const taskRepository = {
   },
 
   async create(data: NewTaskData): Promise<Task> {
-    // API отримує лише ті поля, які воно підтримує.
     const created = await httpClient.post<ApiTodo>(`${TODOS}/add`, {
       todo: data.title,
       completed: false,
@@ -104,7 +85,7 @@ export const taskRepository = {
 
     const task: Task = {
       ...toTask(created),
-      id: nextLocalId++, // див. коментар вище про id 255
+      id: nextLocalId++,
       description: data.description,
       category: data.category,
       priority: data.priority,
