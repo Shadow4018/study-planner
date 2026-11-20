@@ -20,7 +20,6 @@ export interface TaskContextValue {
   filter: TaskFilter
   setFilter: Dispatch<SetStateAction<TaskFilter>>
 
-  /** Завдання, яке зараз редагується (null — форма в режимі створення). */
   editingTask: Task | null
   startEditing: (id: number) => void
   cancelEditing: () => void
@@ -33,9 +32,8 @@ export interface TaskContextValue {
   clearCompleted: () => void
   resetTasks: () => void
 
-  /** Активне Undoable Delete (null — нічого не очікує видалення). */
   pendingDeletion: PendingDeletion | null
-  /** Поточне повідомлення Toast (null — нічого показувати). */
+  
   toast: ToastData | null
   dismissToast: () => void
 }

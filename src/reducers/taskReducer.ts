@@ -1,11 +1,6 @@
 import { initialTasks } from '../data/initialTasks'
 import type { NewTaskData, Task } from '../types/task'
 
-/**
- * Видалення, яке ще можна скасувати.
- * `seq` збільшується при кожному новому запиті — за ним UI та Effect
- * відрізняють «нове» очікуване видалення від попереднього.
- */
 export interface PendingDeletion {
   ids: number[]
   seq: number
@@ -14,7 +9,6 @@ export interface PendingDeletion {
 export interface TaskState {
   tasks: Task[]
   pending: PendingDeletion | null
-  /** Лічильник запитів на видалення (потрібен для PendingDeletion.seq). */
   deleteSeq: number
 }
 
@@ -32,21 +26,12 @@ export function createInitialState(tasks: Task[] = initialTasks): TaskState {
   return { tasks, pending: null, deleteSeq: 0 }
 }
 
-/**
- * Остаточно прибирає з масиву завдання, що очікували видалення.
- * Використовується в confirmDelete і коли починається нове видалення,
- * поки попереднє ще не завершилось.
- */
 function removePending(state: TaskState): Task[] {
   if (!state.pending) return state.tasks
   const { ids } = state.pending
   return state.tasks.filter((task) => !ids.includes(task.id))
 }
 
-/**
- * Чиста функція: ні таймерів, ні DOM, ні localStorage, ні UI.
- * Така ж пара (state, action) завжди дає той самий результат.
- */
 export function taskReducer(state: TaskState, action: TaskAction): TaskState {
   switch (action.type) {
     case 'add': {
@@ -80,8 +65,6 @@ export function taskReducer(state: TaskState, action: TaskAction): TaskState {
       if (!state.tasks.some((task) => task.id === id)) return state
       if (state.pending?.ids.includes(id)) return state
 
-      // Підтримується одне активне видалення: якщо попереднє ще не завершилось,
-      // воно підтверджується одразу, і починається нове.
       const seq = state.deleteSeq + 1
       return {
         tasks: removePending(state),
@@ -111,7 +94,6 @@ export function taskReducer(state: TaskState, action: TaskAction): TaskState {
       return createInitialState()
 
     default: {
-      // Якщо додати нову дію й забути обробити її, TypeScript підкаже помилку.
       const exhaustive: never = action
       return exhaustive
     }
