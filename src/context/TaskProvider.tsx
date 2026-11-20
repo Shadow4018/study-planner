@@ -51,8 +51,6 @@ export function TaskProvider({ children }: TaskProviderProps) {
   const dismissToast = useCallback(() => setToast(null), [])
 
   // ── Effect 1: таймер Undoable Delete ────────────────────────────────────
-  // Таймер — побічний ефект, тому він тут, а не в reducer. Cleanup гарантує,
-  // що при Undo, новому видаленні або unmount старий таймер буде скасовано.
   const { pending } = state
   useEffect(() => {
     if (!pending) return
