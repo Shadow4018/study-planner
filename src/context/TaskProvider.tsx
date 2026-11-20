@@ -26,13 +26,10 @@ interface TaskProviderProps {
 }
 
 export function TaskProvider({ children }: TaskProviderProps) {
-  // tasks — єдине джерело правди, ним керує лише reducer.
-  // Початковий стан читається з localStorage (пошкоджені дані → initialTasks).
   const [state, dispatch] = useReducer(taskReducer, undefined, () =>
     createInitialState(readStorage(TASKS_STORAGE_KEY, initialTasks, isTaskList)),
   )
 
-  // Активний фільтр — окремий, незалежний від tasks шматок стану.
   const [filter, setFilter] = useLocalStorage<TaskFilter>(
     FILTER_STORAGE_KEY,
     'all',
@@ -76,7 +73,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
     return () => clearTimeout(timerId)
   }, [pending, showToast])
 
-  // ── Effect 2: синхронізація tasks → localStorage ────────────────────────
+  // ── Effect 2: синхронізація tasks - localStorage ────────────────────────
   useEffect(() => {
     const saved = writeStorage(TASKS_STORAGE_KEY, state.tasks)
     if (!saved) showToast('Не вдалося зберегти дані в браузері', 'error')
